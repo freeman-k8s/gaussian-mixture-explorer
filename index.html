@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaussian Mixture Explorer</title>
+<style>
+  :root {
+    --bg: #fafaf7; --fg: #1d1d1b; --muted: #6b6b66; --card: #ffffff; --line: #dcdcd4;
+    --c1: #d1495b; --c2: #2e86ab; --cm: #1d1d1b; --grid: #ececE4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151517; --fg: #ececea; --muted: #9a9a94; --card: #1e1e21; --line: #34343a;
+            --c1: #ff7a8a; --c2: #5ec0e8; --cm: #f2f2ee; --grid: #2a2a2e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.55 Georgia, "Times New Roman", serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .formula { color: var(--muted); font-style: italic; margin-bottom: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  canvas { width: 100%; height: 380px; display: block; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+  h2 { font-size: 1rem; margin: 0 0 10px; }
+  .row { display: grid; grid-template-columns: 56px 1fr 84px; gap: 10px; align-items: center; margin: 8px 0; }
+  .row label { font-family: ui-monospace, Menlo, monospace; font-size: .9rem; }
+  input[type=range] { width: 100%; }
+  input[type=number] { width: 100%; padding: 3px 6px; background: var(--bg); color: var(--fg);
+                        border: 1px solid var(--line); border-radius: 5px; font: inherit; font-size: .9rem; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  td { padding: 3px 0; } td:last-child { text-align: right; font-family: ui-monospace, Menlo, monospace; }
+  .opts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: .9rem; }
+  .note { color: var(--muted); font-size: .85rem; margin-top: 12px; }
+  button { font: inherit; font-size: .9rem; padding: 4px 12px; border-radius: 6px; cursor: pointer;
+           background: var(--bg); color: var(--fg); border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gaussian Mixture Explorer</h1>
+  <div class="formula">f(t) = x · N(t; μ₁, σ₁²) + y · N(t; μ₂, σ₂²), with y = 1 − x</div>
+
+  <div class="card"><canvas id="plot"></canvas>
+    <div class="opts">
+      <label><input type="checkbox" id="showComp" checked> show weighted components</label>
+      <label><input type="checkbox" id="showMean" checked> show mean</label>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2><span class="sw" style="background:var(--c1)"></span>Component 1</h2>
+      <div class="row"><label>μ₁</label><input type="range" id="mu1_r" min="-10" max="10" step="0.05"><input type="number" id="mu1" step="0.05"></div>
+      <div class="row"><label>σ₁</label><input type="range" id="s1_r" min="0.1" max="5" step="0.05"><input type="number" id="s1" step="0.05" min="0.01"></div>
+      <div class="row"><label>x</label><input type="range" id="x_r" min="0" max="1" step="0.01"><input type="number" id="x" step="0.01" min="0" max="1"></div>
+    </div>
+    <div class="card">
+      <h2><span class="sw" style="background:var(--c2)"></span>Component 2</h2>
+      <div class="row"><label>μ₂</label><input type="range" id="mu2_r" min="-10" max="10" step="0.05"><input type="number" id="mu2" step="0.05"></div>
+      <div class="row"><label>σ₂</label><input type="range" id="s2_r" min="0.1" max="5" step="0.05"><input type="number" id="s2" step="0.05" min="0.01"></div>
+      <div class="row"><label>y</label><input type="range" id="y_r" min="0" max="1" step="0.01" disabled><input type="number" id="y" step="0.01" disabled></div>
+    </div>
+    <div class="card">
+      <h2>Moments of the mixture</h2>
+      <table>
+        <tr><td>Mean E[T]</td><td id="m_mean"></td></tr>
+        <tr><td>Variance Var[T]</td><td id="m_var"></td></tr>
+        <tr><td>Std. deviation</td><td id="m_sd"></td></tr>
+        <tr><td>Skewness</td><td id="m_skew"></td></tr>
+        <tr><td>Excess kurtosis</td><td id="m_kurt"></td></tr>
+        <tr><td>Number of modes</td><td id="m_modes"></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <p class="note">
+    Convention: N(μ, σ) denotes a normal distribution with mean μ and standard deviation σ.
+    The weights are constrained to x ∈ [0, 1], y = 1 − x so that f integrates to one.
+    Note that this is a <em>mixture</em> of densities; it differs from the distribution of the linear
+    combination xA + yB of independent normal variables, which would itself be normal.
+  </p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const DEFAULTS = { mu1: -2, s1: 1, mu2: 2.5, s2: 1.5, x: 0.4 };
+  const st = Object.assign({}, DEFAULTS);
+  const $ = id => document.getElementById(id);
+  const canvas = $("plot"), ctx = canvas.getContext("2d");
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  const pdf = (t, m, s) => Math.exp(-0.5 * ((t - m) / s) ** 2) / (s * Math.sqrt(2 * Math.PI));
+  const mix = t => st.x * pdf(t, st.mu1, st.s1) + (1 - st.x) * pdf(t, st.mu2, st.s2);
+
+  function moments() {
+    const w = [st.x, 1 - st.x], m = [st.mu1, st.mu2], s = [st.s1, st.s2];
+    const mean = w[0] * m[0] + w[1] * m[1];
+    let c2 = 0, c3 = 0, c4 = 0;           // central moments of the mixture
+    for (let i = 0; i < 2; i++) {
+      const d = m[i] - mean, v = s[i] ** 2;
+      c2 += w[i] * (v + d * d);
+      c3 += w[i] * (d ** 3 + 3 * d * v);
+      c4 += w[i] * (d ** 4 + 6 * d * d * v + 3 * v * v);
+    }
+    return { mean, variance: c2, sd: Math.sqrt(c2), skew: c3 / c2 ** 1.5, kurt: c4 / (c2 * c2) - 3 };
+  }
+
+  function countModes(lo, hi) {
+    const n = 4000; let modes = 0, prev = mix(lo), cur = mix(lo + (hi - lo) / n), rising = cur > prev;
+    for (let i = 2; i <= n; i++) {
+      const nxt = mix(lo + (hi - lo) * i / n);
+      if (rising && nxt < cur) { modes++; rising = false; }
+      else if (!rising && nxt > cur) rising = true;
+      cur = nxt;
+    }
+    return modes;
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const m = moments();
+    const lo = Math.min(st.mu1 - 4 * st.s1, st.mu2 - 4 * st.s2, m.mean - 4 * m.sd);
+    const hi = Math.max(st.mu1 + 4 * st.s1, st.mu2 + 4 * st.s2, m.mean + 4 * m.sd);
+    const N = 600; let ymax = 0;
+    for (let i = 0; i <= N; i++) ymax = Math.max(ymax, mix(lo + (hi - lo) * i / N));
+    ymax *= 1.1;
+
+    const pad = { l: 46, r: 14, t: 12, b: 32 };
+    const X = t => pad.l + (t - lo) / (hi - lo) * (W - pad.l - pad.r);
+    const Y = v => H - pad.b - v / ymax * (H - pad.t - pad.b);
+
+    ctx.strokeStyle = css("--grid"); ctx.fillStyle = css("--muted");
+    ctx.font = "12px ui-monospace, Menlo, monospace"; ctx.lineWidth = 1;
+    const step = niceStep((hi - lo) / 8);
+    ctx.textAlign = "center";
+    for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) {
+      ctx.beginPath(); ctx.moveTo(X(t), pad.t); ctx.lineTo(X(t), H - pad.b); ctx.stroke();
+      ctx.fillText(+t.toFixed(6), X(t), H - pad.b + 16);
+    }
+    const ystep = niceStep(ymax / 5); ctx.textAlign = "right";
+    for (let v = 0; v <= ymax; v += ystep) {
+      ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke();
+      ctx.fillText(+v.toFixed(4), pad.l - 6, Y(v) + 4);
+    }
+
+    const curve = (fn, color, width, fill) => {
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const t = lo + (hi - lo) * i / N, px = X(t), py = Y(fn(t));
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+      if (fill) { ctx.lineTo(X(hi), Y(0)); ctx.lineTo(X(lo), Y(0)); ctx.closePath();
+                  ctx.globalAlpha = 0.10; ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1; }
+    };
+    if ($("showComp").checked) {
+      curve(t => st.x * pdf(t, st.mu1, st.s1), css("--c1"), 1.5, true);
+      curve(t => (1 - st.x) * pdf(t, st.mu2, st.s2), css("--c2"), 1.5, true);
+    }
+    curve(mix, css("--cm"), 2.5, false);
+
+    if ($("showMean").checked) {
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(X(m.mean), pad.t); ctx.lineTo(X(m.mean), H - pad.b); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    return { m, lo, hi };
+  }
+
+  function niceStep(raw) {
+    const p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+  }
+
+  function render() {
+    const { m, lo, hi } = draw();
+    const f = (v, d = 4) => (Number.isFinite(v) ? v.toFixed(d) : "—");
+    $("m_mean").textContent = f(m.mean); $("m_var").textContent = f(m.variance);
+    $("m_sd").textContent = f(m.sd); $("m_skew").textContent = f(m.skew);
+    $("m_kurt").textContent = f(m.kurt);
+    $("m_modes").textContent = (st.x === 0 || st.x === 1) ? "1" : countModes(lo, hi);
+    $("y").value = (1 - st.x).toFixed(2); $("y_r").value = 1 - st.x;
+  }
+
+  const keys = { mu1: "mu1", s1: "s1", mu2: "mu2", s2: "s2", x: "x" };
+  function sync() { for (const k in keys) { $(k).value = st[k]; $(k + "_r").value = st[k]; } render(); }
+  for (const k in keys) {
+    const onIn = src => () => {
+      let v = parseFloat($(src).value); if (!Number.isFinite(v)) return;
+      if (k === "s1" || k === "s2") v = Math.max(v, 0.01);
+      if (k === "x") v = Math.min(Math.max(v, 0), 1);
+      st[k] = v; if (src !== k) $(k).value = v; if (src !== k + "_r") $(k + "_r").value = v; render();
+    };
+    $(k).addEventListener("input", onIn(k));
+    $(k + "_r").addEventListener("input", onIn(k + "_r"));
+  }
+  $("showComp").addEventListener("change", render);
+  $("showMean").addEventListener("change", render);
+  $("reset").addEventListener("click", () => { Object.assign(st, DEFAULTS); sync(); });
+  window.addEventListener("resize", render);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+  sync();
+})();
+</script>
+</body>
+</html>
