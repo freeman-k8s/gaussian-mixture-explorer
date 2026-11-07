@@ -18,7 +18,19 @@
          font: 16px/1.55 Georgia, "Times New Roman", serif; }
   main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
-  .formula { color: var(--muted); font-style: italic; margin-bottom: 20px; }
+  .subtitle { color: var(--muted); margin: 0 0 16px; }
+  .formula-card { margin-bottom: 16px; text-align: center; }
+  .formula-card .label { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .formula-card math { font-size: 1.6rem; }
+  .formula-card math.expanded { font-size: 1.25rem; margin-top: 6px; }
+  .mwrap { overflow-x: auto; max-width: 100%; }
+  .formula-card .t1 { color: var(--c1); }
+  .formula-card .t2 { color: var(--c2); }
+  .formula-card .desc { color: var(--muted); font-size: .9rem; margin: 8px 0 0; }
+  .formula-card .live { font-family: ui-monospace, Menlo, monospace; font-size: .9rem; margin-top: 10px;
+                        padding-top: 10px; border-top: 1px dashed var(--line); overflow-wrap: anywhere; }
+  .formula-card .live .t1 { color: var(--c1); } .formula-card .live .t2 { color: var(--c2); }
+  @media (max-width: 560px) { .formula-card math { font-size: 1rem; } .formula-card math.expanded { font-size: .8rem; } }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
   canvas { width: 100%; height: 380px; display: block; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
@@ -40,7 +52,34 @@
 <body>
 <main>
   <h1>Gaussian Mixture Explorer</h1>
-  <div class="formula">f(t) = x · N(t; μ₁, σ₁²) + y · N(t; μ₂, σ₂²), with y = 1 − x</div>
+  <p class="subtitle">A two-component Gaussian mixture: a weighted sum of two normal densities.</p>
+
+  <div class="card formula-card">
+    <div class="label">Probability density function</div>
+    <div class="mwrap"><math display="block">
+      <mi>f</mi><mo stretchy="false" lspace="0" rspace="0">(</mo><mi>t</mi><mo stretchy="false" lspace="0" rspace="0">)</mo><mo>=</mo>
+      <mrow class="t1"><mi>x</mi><mo>·</mo><mi>N</mi><mo stretchy="false" lspace="0" rspace="0">(</mo><mi>t</mi><mo>;</mo><msub><mi>μ</mi><mn>1</mn></msub><mo>,</mo><msubsup><mi>σ</mi><mn>1</mn><mn>2</mn></msubsup><mo stretchy="false" lspace="0" rspace="0">)</mo></mrow>
+      <mo>+</mo>
+      <mrow class="t2"><mi>y</mi><mo>·</mo><mi>N</mi><mo stretchy="false" lspace="0" rspace="0">(</mo><mi>t</mi><mo>;</mo><msub><mi>μ</mi><mn>2</mn></msub><mo>,</mo><msubsup><mi>σ</mi><mn>2</mn><mn>2</mn></msubsup><mo stretchy="false" lspace="0" rspace="0">)</mo></mrow>
+      <mo>,</mo><mspace width="1em"/><mi>y</mi><mo>=</mo><mn>1</mn><mo>−</mo><mi>x</mi>
+    </math></div>
+    <div class="mwrap"><math display="block" class="expanded">
+      <mi>f</mi><mo stretchy="false" lspace="0" rspace="0">(</mo><mi>t</mi><mo stretchy="false" lspace="0" rspace="0">)</mo><mo>=</mo>
+      <mrow class="t1">
+        <mfrac><mi>x</mi><mrow><msub><mi>σ</mi><mn>1</mn></msub><msqrt><mn>2</mn><mi>π</mi></msqrt></mrow></mfrac>
+        <mi>exp</mi><mo>⁡</mo>
+        <mrow><mo>(</mo><mo>−</mo><mfrac><msup><mrow><mo stretchy="false" lspace="0" rspace="0">(</mo><mi>t</mi><mo>−</mo><msub><mi>μ</mi><mn>1</mn></msub><mo stretchy="false" lspace="0" rspace="0">)</mo></mrow><mn>2</mn></msup><mrow><mn>2</mn><msubsup><mi>σ</mi><mn>1</mn><mn>2</mn></msubsup></mrow></mfrac><mo>)</mo></mrow>
+      </mrow>
+      <mo>+</mo>
+      <mrow class="t2">
+        <mfrac><mi>y</mi><mrow><msub><mi>σ</mi><mn>2</mn></msub><msqrt><mn>2</mn><mi>π</mi></msqrt></mrow></mfrac>
+        <mi>exp</mi><mo>⁡</mo>
+        <mrow><mo>(</mo><mo>−</mo><mfrac><msup><mrow><mo stretchy="false" lspace="0" rspace="0">(</mo><mi>t</mi><mo>−</mo><msub><mi>μ</mi><mn>2</mn></msub><mo stretchy="false" lspace="0" rspace="0">)</mo></mrow><mn>2</mn></msup><mrow><mn>2</mn><msubsup><mi>σ</mi><mn>2</mn><mn>2</mn></msubsup></mrow></mfrac><mo>)</mo></mrow>
+      </mrow>
+    </math></div>
+    <p class="desc">N(t; μ, σ²) is the normal density with mean μ and variance σ². The weight x belongs to component 1 (red), y = 1 − x to component 2 (blue).</p>
+    <div class="live" id="live"></div>
+  </div>
 
   <div class="card"><canvas id="plot"></canvas>
     <div class="opts">
@@ -189,6 +228,10 @@
     $("m_kurt").textContent = f(m.kurt);
     $("m_modes").textContent = (st.x === 0 || st.x === 1) ? "1" : countModes(lo, hi);
     $("y").value = (1 - st.x).toFixed(2); $("y_r").value = 1 - st.x;
+    const n = v => (+v.toFixed(2)).toString().replace("-", "−");
+    $("live").innerHTML =
+      'Current: f(t) = <span class="t1">' + n(st.x) + ' · N(t; ' + n(st.mu1) + ', ' + n(st.s1) + '²)</span>' +
+      ' + <span class="t2">' + n(1 - st.x) + ' · N(t; ' + n(st.mu2) + ', ' + n(st.s2) + '²)</span>';
   }
 
   const keys = { mu1: "mu1", s1: "s1", mu2: "mu2", s2: "s2", x: "x" };
